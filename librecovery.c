@@ -32,10 +32,13 @@
 #define LOG_TAG "librecovery"
 #define RECOVERY_DIR "/cache/recovery"
 
-const char *kRecoveryCommand = RECOVERY_DIR "/command";
-const char *kWipeData = "--wipe_data";
-const char *kUpdatePackage = "--update_package";
-const char *kRebootRecovery = "recovery";
+const char kRecoveryCommand[] = RECOVERY_DIR "/command";
+const char kWipeData[] = "--wipe_data";
+const char kUpdatePackage[] = "--update_package";
+const char kRebootRecovery[] = "recovery";
+
+const int kWipeDataLength = sizeof(kWipeData) - 1;
+const int kUpdatePackageLength = sizeof(kUpdatePackage) - 1;
 
 static int
 safeWrite(FILE *file, const void *data, size_t size)
@@ -95,48 +98,50 @@ int
 factoryReset()
 {
   // In AOSP's recovery image, "--wipe_data" is the synonym for factory reset
-  return execRecoveryCommand((char *) kWipeData, 11);
+  return execRecoveryCommand((char *) kWipeData, kWipeDataLength);
 }
 
 // Some devices use a different mount point for external storage in recovery
 // than in the main system. This function just normalizes the path to use the
-// recovery mount point.
-static void
-convertExternalStoragePath(char **path, int *pathLength)
+// recovery mount point. Returns the length of the new path.
+//
+// Note: The buffer pointed to by destPath must have enough space to hold the
+// string replacement.
+static int
+convertExternalStoragePath(char *srcPath, int srcPathLength, char *destPath)
 {
   char *extStorage = getenv("EXTERNAL_STORAGE");
   char *relPath;
   int extStorageLength, recoveryExtStorageLength;
-  int relPathLength;
+  int relPathLength, destPathLength;
 
   if (!extStorage) {
-    return;
+    strlcpy(destPath, srcPath, srcPathLength + 1);
+    return srcPathLength;
   }
 
   extStorageLength = strlen(extStorage);
   recoveryExtStorageLength = strlen(RECOVERY_EXTERNAL_STORAGE);
-  if (strncmp(*path, extStorage, extStorageLength) != 0) {
-    return;
+  if (strncmp(srcPath, extStorage, extStorageLength) != 0) {
+    strlcpy(destPath, srcPath, srcPathLength + 1);
+    return srcPathLength;
   }
 
-  relPath = *path + extStorageLength;
-  relPathLength = *pathLength - extStorageLength;
+  relPath = srcPath + extStorageLength;
+  relPathLength = srcPathLength - extStorageLength;
 
-  *pathLength = recoveryExtStorageLength + relPathLength;
-  *path = malloc(sizeof(char) * (*pathLength + 1));
-
-  strlcpy(*path, RECOVERY_EXTERNAL_STORAGE, recoveryExtStorageLength + 1);
-  strlcat(*path, relPath, *pathLength + 1);
+  destPathLength = recoveryExtStorageLength + relPathLength;
+  strlcpy(destPath, RECOVERY_EXTERNAL_STORAGE, recoveryExtStorageLength + 1);
+  strlcat(destPath, relPath, destPathLength + 1);
+  return destPathLength;
 }
 
 int
-otaInstall(char *updatePath, int updatePathLength)
+installFotaUpdate(char *updatePath, int updatePathLength)
 {
   struct stat updateStat;
-  const int kUpdatePackageLength = 16;
-  const int kMaxUpdatePackageLength = kUpdatePackageLength + 1 + PATH_MAX;
-  char command[kMaxUpdatePackageLength];
-  int commandLength;
+  char command[kUpdatePackageLength + 1 + PATH_MAX];
+  int prefixLength;
 
   if (!updatePath) {
     LOGE("Error: null update path");
@@ -147,7 +152,6 @@ otaInstall(char *updatePath, int updatePathLength)
     LOGE("Error: update path length invalid: %d", updatePathLength);
     return -1;
   }
-  updatePath[updatePathLength] = '\0';
 
   if (stat(updatePath, &updateStat) == -1) {
     LOGE("Error: could not stat update path \"%s\": %s",
@@ -160,10 +164,10 @@ otaInstall(char *updatePath, int updatePathLength)
     return -1;
   }
 
-  convertExternalStoragePath(&updatePath, &updatePathLength);
+  prefixLength = kUpdatePackageLength + 1;
+  snprintf(command, prefixLength + 1, "%s=", kUpdatePackage);
 
-  commandLength = kUpdatePackageLength + 1 + updatePathLength;
-  snprintf(command, commandLength + 1, "%s=%s", kUpdatePackage, updatePath);
-
-  return execRecoveryCommand(command, commandLength);
+  updatePathLength = convertExternalStoragePath(updatePath, updatePathLength,
+                                                command + prefixLength);
+  return execRecoveryCommand(command, prefixLength + updatePathLength);
 }

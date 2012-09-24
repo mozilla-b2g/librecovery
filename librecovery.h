@@ -33,9 +33,9 @@ extern "C" {
 int factoryReset();
 
 /**
- * Install an OTA update.zip
+ * Install a FOTA update.zip
  */
-int otaInstall(char *updatePath, int updatePathLength);
+int installFotaUpdate(char *updatePath, int updatePathLength);
 
 #if __cplusplus
 }; // extern "C"
