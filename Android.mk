@@ -55,26 +55,19 @@ LOCAL_FORCE_STATIC_EXECUTABLE := true
 LOCAL_SRC_FILES := librecovery_test.c $(LIBRECOVERY_SRC_FILES)
 LOCAL_STATIC_LIBRARIES := libcutils libc
 LOCAL_CFLAGS := $(LIBRECOVERY_CFLAGS)
-LOCAL_MODULE_TAGS := optional eng tests
+LOCAL_MODULE_TAGS := tests
 include $(BUILD_EXECUTABLE)
 
-include $(CLEAR_VARS)
-LOCAL_MODULE := librecovery_testdata
-LOCAL_MODULE_CLASS := DATA
-LOCAL_MODULE_TAGS := optional eng tests
-LOCAL_MODULE_PATH := $(TARGET_OUT)
-include $(BUILD_PREBUILT)
-
+# librecovery test data -- this uses a local make target instead of an AOSP
+# module to avoid being built by default (signing an update zip requires java)
 TESTS_DIR := $(LOCAL_PATH)/tests
 OUT_DIR := $(shell cd $(call local-intermediates-dir); pwd)
 
-.PHONY: $(LOCAL_BUILT_MODULE)
-$(LOCAL_BUILT_MODULE):
+.PHONY: librecovery_testdata
+librecovery_testdata: librecovery_test
 	mkdir -p $(OUT_DIR)
 	export TARGET_DEVICE="$(TARGET_DEVICE)" && \
 	export LIBRECOVERY_ENV_VARS="$(DEVICE_CONFIG)" && \
 	$(foreach env_var,$(LIBRECOVERY_ENV_VARS),export $(env_var) &&) \
 	$(foreach dirname,$(LIBRECOVERY_TESTDATA),$(TESTS_DIR)/create_update.sh $(TESTS_DIR)/data/$(dirname) $(OUT_DIR)/$(dirname).zip &&) \
 	echo
-
-$(LOCAL_INSTALLED_MODULE): ;

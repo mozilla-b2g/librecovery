@@ -64,11 +64,25 @@ cp -r $UPDATE_DIR/!(META-INF) $TMP_UPDATE_DIR
 cd $TMP_UPDATE_DIR
 zip -r $TMP_DIR/update.zip * 1>/dev/null || echo "Error creating zip"
 
+# Try to find a "real" JAVA_HOME since we fake it in B2G
+if [[ "$JAVA_HOME" =  *fake-jdk-tools ]]; then
+  case `uname -s` in
+    Darwin)
+      export JAVA_HOME=/System/Library/Frameworks/JavaVM.framework/Versions/1.6/Home
+      ;;
+    *)
+      export JAVA_HOME=/usr/lib/jvm/java-6-sun
+      ;;
+  esac
+  export PATH=$JAVA_HOME/bin:$PATH
+fi
+
 KEYDIR=$TOP_DIR/build/target/product/security
+
 echo java -Xmx2048m -jar $TOOLS_DIR/signapk.jar -w \
   $KEYDIR/testkey.x509.pem $KEYDIR/testkey.pk8 $TMP_DIR/update.zip $DEST
 
-java -Xmx2048m -jar $THIS_DIR/tools/signapk.jar -w \
+java -Xmx2048m -jar $TOOLS_DIR/signapk.jar -w \
   $KEYDIR/testkey.x509.pem $KEYDIR/testkey.pk8 $TMP_DIR/update.zip $DEST
 
 echo Update created at $DEST

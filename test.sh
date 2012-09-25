@@ -26,7 +26,7 @@ SDCARD_WORK_DIR=$($ADB shell echo -n \$EXTERNAL_STORAGE/tmp)
 . $TOP_DIR/.config
 
 PRODUCT_OUT=$TOP_DIR/out/target/product/$DEVICE
-TESTDATA_DIR=$PRODUCT_OUT/obj/DATA/librecovery_testdata_intermediates
+TESTDATA_DIR=$PRODUCT_OUT/obj/EXECUTABLES/librecovery_test_intermediates
 
 # run a command on the device; exit with the exit status of the device
 # command.
@@ -90,7 +90,12 @@ wait_for_reboot() {
 
 wait_for_sdcard() {
   while [[ "1" ]]; do
-    ($ADB shell vdc volume list | grep '110 sdcard .* 4') > /dev/null && break
+    ($ADB shell vdc volume list | grep '110 sdcard .* 4') > /dev/null
+    if [[ "$?" = "0" ]]; then
+      break
+    else
+      sleep 1
+    fi
   done
 }
 
