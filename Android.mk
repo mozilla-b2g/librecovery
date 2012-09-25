@@ -14,6 +14,10 @@
 
 LOCAL_PATH := $(call my-dir)
 
+# Some devices share manifests, so this allows us to control whether or not AOSP
+# sees the librecovery build modules when the project has been cloned
+ifeq ($(ENABLE_LIBRECOVERY),true)
+
 # Device specific configuration. These allow us to use generic code in gecko
 # for dealing with recovery based OTA updates
 include $(LOCAL_PATH)/device/$(TARGET_DEVICE).mk
@@ -71,3 +75,5 @@ librecovery_testdata: librecovery_test
 	$(foreach env_var,$(LIBRECOVERY_ENV_VARS),export $(env_var) &&) \
 	$(foreach dirname,$(LIBRECOVERY_TESTDATA),$(TESTS_DIR)/create_update.sh $(TESTS_DIR)/data/$(dirname) $(OUT_DIR)/$(dirname).zip &&) \
 	echo
+
+endif # $(ENABLE_LIBRECOVERY) == true
