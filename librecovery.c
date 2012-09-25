@@ -67,7 +67,7 @@ execRecoveryCommand(char *command, size_t commandLength)
   size_t bytesWritten;
 
   // Ensure the recovery directory exists
-  if (mkdir(RECOVERY_DIR, 0777) == -1 && errno != EEXIST) {
+  if (mkdir(RECOVERY_DIR, 0770) == -1 && errno != EEXIST) {
     LOGE("Unable to create recovery directory \"%s\": %s", RECOVERY_DIR,
          strerror(errno));
     return -1;
