@@ -15,6 +15,13 @@ test_system_update_from_data() {
   wait_for_reboot
 
   file_exists "/system/bin/itworks.txt"
+
+  RESULT=$(get_fota_update_status result)
+  [[ "$RESULT" != "success" ]] && fail "Unexpected result: $RESULT"
+
+  UPDATE_PATH=$(get_fota_update_status updatePath)
+  [[ "$UPDATE_PATH" != "$WORK_DIR/system_update.zip" ]] && \
+    fail "Unexpected update path: $UPDATE_PATH"
 }
 
 test_system_update_from_sdcard() {
@@ -30,6 +37,13 @@ test_system_update_from_sdcard() {
   wait_for_reboot
 
   file_exists "/system/bin/itworks.txt"
+  RESULT=$(get_fota_update_status result)
+  if [[ "$RESULT" != "success" ]]; then
+    fail "Unexpected result: $RESULT"
+  fi
+
+  # skip the update path here, we don't communicate the device specific
+  # make vars to the test harness yet
 }
 
 test_system_update_from_data

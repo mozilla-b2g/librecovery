@@ -33,12 +33,14 @@
 #define RECOVERY_DIR "/cache/recovery"
 
 const char kRecoveryCommand[] = RECOVERY_DIR "/command";
+const char kLastInstall[] = RECOVERY_DIR "/last_install";
 const char kWipeData[] = "--wipe_data";
 const char kUpdatePackage[] = "--update_package";
 const char kRebootRecovery[] = "recovery";
 
 const int kWipeDataLength = sizeof(kWipeData) - 1;
 const int kUpdatePackageLength = sizeof(kUpdatePackage) - 1;
+const int kLastInstallMaxLength = PATH_MAX + 3;
 
 static int
 safeWrite(FILE *file, const void *data, size_t size)
@@ -55,6 +57,23 @@ safeWrite(FILE *file, const void *data, size_t size)
   }
 
   return written;
+}
+
+static int
+safeRead(FILE *file, void *data, size_t size)
+{
+  size_t read;
+
+  do {
+    read = fread(data, 1, size, file);
+  } while (read < size && errno == EINTR);
+
+  if (read < size && ferror(file)) {
+    LOGE("Error reading data from file: %s", strerror(errno));
+    return -1;
+  }
+
+  return read;
 }
 
 // Write a command to the recovery command file in /cache/recovery/command,
@@ -170,4 +189,71 @@ installFotaUpdate(char *updatePath, int updatePathLength)
   updatePathLength = convertExternalStoragePath(updatePath, updatePathLength,
                                                 command + prefixLength);
   return execRecoveryCommand(command, prefixLength + updatePathLength);
+}
+
+int
+getFotaUpdateStatus(FotaUpdateStatus *status)
+{
+  // The format of the FOTA last_install file is just:
+  // UPDATE_PATH\nRESULT\n
+  // UPDATE_PATH is the recovery specific path for the applied update
+  // RESULT is 0 for failure, or 1 for success
+  struct stat lastInstallStat;
+  char lastInstallData[kLastInstallMaxLength];
+  char *updateResult, *updatePath, *tokenContext;
+  int read, lineNumber = 0;
+  FILE *lastInstallFile;
+
+  if (!status) {
+    LOGE("Error: null update status");
+    return -1;
+  }
+
+  // Initial status values
+  status->result = FOTA_UPDATE_UNKNOWN;
+  status->updatePath[0] = '\0';
+
+  if (stat(kLastInstall, &lastInstallStat) == -1 ||
+      !S_ISREG(lastInstallStat.st_mode)) {
+    LOGW("Couldn't find %s", kLastInstall);
+    return 0;
+  }
+
+  lastInstallFile = fopen(kLastInstall, "r");
+  if (!lastInstallFile) {
+    LOGW("Couldn't open %s", kLastInstall);
+    return 0;
+  }
+
+  if ((read = safeRead(lastInstallFile, lastInstallData,
+                       kLastInstallMaxLength - 1)) <= 0) {
+    LOGW("Couldn't read data from %s", kLastInstall);
+    fclose(lastInstallFile);
+    return 0;
+  }
+  lastInstallData[read + 1] = '\0';
+
+  updatePath = strtok_r(lastInstallData, "\n", &tokenContext);
+  if (!updatePath) {
+    LOGW("Couldn't read update path from %s", kLastInstall);
+    fclose(lastInstallFile);
+    return 0;
+  }
+  strlcpy(status->updatePath, updatePath, read - 2);
+
+  updateResult = strtok_r(NULL, "\n", &tokenContext);
+  if (!updateResult) {
+    LOGW("Couldn't read update result from %s", kLastInstall);
+    fclose(lastInstallFile);
+    return 0;
+  }
+
+  if (strncmp(updateResult, "1", 1) == 0) {
+    status->result = FOTA_UPDATE_SUCCESS;
+  } else {
+    status->result = FOTA_UPDATE_FAIL;
+  }
+
+  fclose(lastInstallFile);
+  return 0;
 }

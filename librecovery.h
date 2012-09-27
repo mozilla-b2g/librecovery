@@ -18,9 +18,10 @@
 #ifndef _LIBRECOVERY_H
 #define _LIBRECOVERY_H
 
+#include <unistd.h>
+
 /**
  * This library provides a high level API for using the recovery partition.
- * All functions in this library will reboot the device into recovery.
  */
 
 #if __cplusplus
@@ -28,14 +29,31 @@ extern "C" {
 #endif
 
 /**
- * Perform a factory reset
+ * Perform a factory reset. This function will reboot the device into recovery.
  */
 int factoryReset();
 
 /**
- * Install a FOTA update.zip
+ * Install a FOTA update.zip. This function will reboot the device into recovery.
  */
 int installFotaUpdate(char *updatePath, int updatePathLength);
+
+typedef enum {
+  FOTA_UPDATE_UNKNOWN = 0,
+  FOTA_UPDATE_FAIL = 1,
+  FOTA_UPDATE_SUCCESS = 2
+} FotaUpdateResult;
+
+typedef struct {
+  FotaUpdateResult result;
+  // The path to the update that was installed
+  char updatePath[PATH_MAX];
+} FotaUpdateStatus;
+
+/**
+ * Get the status of a FOTA update after it has been attempted.
+ */
+int getFotaUpdateStatus(FotaUpdateStatus *status);
 
 #if __cplusplus
 }; // extern "C"

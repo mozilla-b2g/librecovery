@@ -43,6 +43,11 @@ testname() {
 fail() {
   echo
   echo FAIL: $testname
+
+  if [[ -n "$1" ]]; then
+    echo $1
+  fi
+
   echo
   exit 1
 }
@@ -102,6 +107,10 @@ wait_for_sdcard() {
 librecovery_test() {
   # we expect librecovery_test to cause a reboot, so we don't check the result
   run_command $WORK_DIR/librecovery_test $@
+}
+
+get_fota_update_status() {
+  $ADB shell $WORK_DIR/librecovery_test getFotaUpdateStatus $@ | tr -d "\r\n"
 }
 
 . $TESTS_DIR/test_installFotaUpdate.sh
