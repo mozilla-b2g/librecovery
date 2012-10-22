@@ -13,6 +13,8 @@ THIS_DIR=$(cd "`dirname "$0"`"; pwd)
 TESTS_DIR=$THIS_DIR/tests
 WORK_DIR=/data/local/tmp
 TOP_DIR=$(cd "$THIS_DIR/.."; pwd)
+TEST_TARGET=$1
+SKIP_SDCARD=
 
 # ------------------------
 
@@ -56,10 +58,16 @@ file_exists() {
   run_command "ls $1" 1>/dev/null 2>/dev/null || ( echo "$1 doesn't exist"; fail )
 }
 
+file_not_exists() {
+  run_command "ls $1" 1>/dev/null 2>/dev/null && ( echo "$1 shouldn't exist"; fail )
+}
+
 cleanup() {
-  wait_for_sdcard
   run_command rm -r $WORK_DIR
-  run_command rm -r $SDCARD_WORK_DIR
+  if [[ -z "$SKIP_SDCARD" ]]; then
+    wait_for_sdcard
+    run_command rm -r $SDCARD_WORK_DIR
+  fi
 }
 
 $ADB push $PRODUCT_OUT/system/bin/librecovery_test $WORK_DIR/librecovery_test
@@ -113,7 +121,14 @@ get_fota_update_status() {
   $ADB shell $WORK_DIR/librecovery_test getFotaUpdateStatus $@ | tr -d "\r\n"
 }
 
-. $TESTS_DIR/test_installFotaUpdate.sh
+if [[ "$TEST_TARGET" = "factoryReset" ]]; then
+  # factory reset don't require to have SD card installed on handset,
+  # skip SD card clean-up to prevent infinite loop.
+  SKIP_SDCARD=1
+  . $TESTS_DIR/test_factoryReset.sh
+else
+  . $TESTS_DIR/test_installFotaUpdate.sh
+fi
 
 cleanup
 
