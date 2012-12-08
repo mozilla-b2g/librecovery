@@ -20,7 +20,7 @@ ifeq ($(ENABLE_LIBRECOVERY),true)
 
 # Device specific configuration. These allow us to use generic code in gecko
 # for dealing with recovery based OTA updates
-include $(LOCAL_PATH)/device/$(TARGET_DEVICE).mk
+-include $(LOCAL_PATH)/device/$(TARGET_DEVICE).mk
 
 # Device specific variables listed in device/$(TARGET_DEVICE).mk
 DEVICE_CONFIG := RECOVERY_EXTERNAL_STORAGE \
