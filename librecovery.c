@@ -25,11 +25,11 @@
 #include <unistd.h>
 
 #include <cutils/android_reboot.h>
+#define LOG_TAG "librecovery"
 #include <cutils/log.h>
 
 #include "librecovery.h"
 
-#define LOG_TAG "librecovery"
 #define RECOVERY_DIR "/cache/recovery"
 
 const char kRecoveryCommand[] = RECOVERY_DIR "/command";
@@ -52,7 +52,7 @@ safeWrite(FILE *file, const void *data, size_t size)
   } while (written == 0 && errno == EINTR);
 
   if (written == 0 && ferror(file)) {
-    LOGE("Error writing data to file: %s", strerror(errno));
+    ALOGE("Error writing data to file: %s", strerror(errno));
     return -1;
   }
 
@@ -69,7 +69,7 @@ safeRead(FILE *file, void *data, size_t size)
   } while (read < size && errno == EINTR);
 
   if (read < size && ferror(file)) {
-    LOGE("Error reading data from file: %s", strerror(errno));
+    ALOGE("Error reading data from file: %s", strerror(errno));
     return -1;
   }
 
@@ -87,14 +87,14 @@ execRecoveryCommand(char *command, size_t commandLength)
 
   // Ensure the recovery directory exists
   if (mkdir(RECOVERY_DIR, 0770) == -1 && errno != EEXIST) {
-    LOGE("Unable to create recovery directory \"%s\": %s", RECOVERY_DIR,
+    ALOGE("Unable to create recovery directory \"%s\": %s", RECOVERY_DIR,
          strerror(errno));
     return -1;
   }
 
   commandFile = fopen(kRecoveryCommand, "w");
   if (!commandFile) {
-    LOGE("Unable to open recovery command file \"%s\": %s", kRecoveryCommand,
+    ALOGE("Unable to open recovery command file \"%s\": %s", kRecoveryCommand,
          strerror(errno));
     return -1;
   }
@@ -108,7 +108,7 @@ execRecoveryCommand(char *command, size_t commandLength)
   fclose(commandFile);
 
   // Reboot into the recovery partition
-  LOGD("Rebooting into recovery: %s", command);
+  ALOGD("Rebooting into recovery: %s", command);
 
   return android_reboot(ANDROID_RB_RESTART2, 0, (char *) kRebootRecovery);
 }
@@ -163,23 +163,23 @@ installFotaUpdate(char *updatePath, int updatePathLength)
   int prefixLength;
 
   if (!updatePath) {
-    LOGE("Error: null update path");
+    ALOGE("Error: null update path");
     return -1;
   }
 
   if (updatePathLength <= 0) {
-    LOGE("Error: update path length invalid: %d", updatePathLength);
+    ALOGE("Error: update path length invalid: %d", updatePathLength);
     return -1;
   }
 
   if (stat(updatePath, &updateStat) == -1) {
-    LOGE("Error: could not stat update path \"%s\": %s",
+    ALOGE("Error: could not stat update path \"%s\": %s",
          updatePath, strerror(errno));
     return -1;
   }
 
   if (!S_ISREG(updateStat.st_mode)) {
-    LOGE("Error: update path \"%s\" is not a regular file", updatePath);
+    ALOGE("Error: update path \"%s\" is not a regular file", updatePath);
     return -1;
   }
 
@@ -205,7 +205,7 @@ getFotaUpdateStatus(FotaUpdateStatus *status)
   FILE *lastInstallFile;
 
   if (!status) {
-    LOGE("Error: null update status");
+    ALOGE("Error: null update status");
     return -1;
   }
 
@@ -215,19 +215,19 @@ getFotaUpdateStatus(FotaUpdateStatus *status)
 
   if (stat(kLastInstall, &lastInstallStat) == -1 ||
       !S_ISREG(lastInstallStat.st_mode)) {
-    LOGW("Couldn't find %s", kLastInstall);
+    ALOGW("Couldn't find %s", kLastInstall);
     return 0;
   }
 
   lastInstallFile = fopen(kLastInstall, "r");
   if (!lastInstallFile) {
-    LOGW("Couldn't open %s", kLastInstall);
+    ALOGW("Couldn't open %s", kLastInstall);
     return 0;
   }
 
   if ((read = safeRead(lastInstallFile, lastInstallData,
                        kLastInstallMaxLength - 1)) <= 0) {
-    LOGW("Couldn't read data from %s", kLastInstall);
+    ALOGW("Couldn't read data from %s", kLastInstall);
     fclose(lastInstallFile);
     return 0;
   }
@@ -235,7 +235,7 @@ getFotaUpdateStatus(FotaUpdateStatus *status)
 
   updatePath = strtok_r(lastInstallData, "\n", &tokenContext);
   if (!updatePath) {
-    LOGW("Couldn't read update path from %s", kLastInstall);
+    ALOGW("Couldn't read update path from %s", kLastInstall);
     fclose(lastInstallFile);
     return 0;
   }
@@ -243,7 +243,7 @@ getFotaUpdateStatus(FotaUpdateStatus *status)
 
   updateResult = strtok_r(NULL, "\n", &tokenContext);
   if (!updateResult) {
-    LOGW("Couldn't read update result from %s", kLastInstall);
+    ALOGW("Couldn't read update result from %s", kLastInstall);
     fclose(lastInstallFile);
     return 0;
   }
