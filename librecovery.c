@@ -30,6 +30,18 @@
 
 #include "librecovery.h"
 
+#ifndef ALOGE
+#define ALOGE LOGE
+#endif
+
+#ifndef ALOGW
+#define ALOGW LOGW
+#endif
+
+#ifndef ALOGD
+#define ALOGD LOGD
+#endif
+
 #define RECOVERY_DIR "/cache/recovery"
 
 const char kRecoveryCommand[] = RECOVERY_DIR "/command";
