@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -54,19 +55,21 @@ const int kWipeDataLength = sizeof(kWipeData) - 1;
 const int kUpdatePackageLength = sizeof(kUpdatePackage) - 1;
 const int kLastInstallMaxLength = PATH_MAX + 3;
 
-static int
-safeWrite(FILE *file, const void *data, size_t size)
+static ssize_t
+safeWrite(int fd, const void *data, size_t size)
 {
-  size_t written;
-
+  size_t written = 0;
   do {
-    written = fwrite(data, size, 1, file);
-  } while (written == 0 && errno == EINTR);
-
-  if (written == 0 && ferror(file)) {
-    ALOGE("Error writing data to file: %s", strerror(errno));
-    return -1;
-  }
+    ssize_t bytesWritten = write(fd, (uint8_t *)data + written, size - written);
+    if (bytesWritten == -1) {
+      if (errno == EINTR) {
+        continue;
+      }
+      ALOGE("Error writing data to file: %s", strerror(errno));
+      return -1;
+    }
+    written += bytesWritten;
+  } while (written < size);
 
   return written;
 }
@@ -94,8 +97,7 @@ static int
 execRecoveryCommand(char *command, size_t commandLength)
 {
   struct stat recoveryDirStat;
-  FILE *commandFile;
-  size_t bytesWritten;
+  int commandFd;
 
   // Ensure the recovery directory exists
   if (mkdir(RECOVERY_DIR, 0770) == -1 && errno != EEXIST) {
@@ -104,20 +106,32 @@ execRecoveryCommand(char *command, size_t commandLength)
     return -1;
   }
 
-  commandFile = fopen(kRecoveryCommand, "w");
-  if (!commandFile) {
+  commandFd = TEMP_FAILURE_RETRY(creat(kRecoveryCommand, 0644));
+  if (commandFd < 0) {
     ALOGE("Unable to open recovery command file \"%s\": %s", kRecoveryCommand,
          strerror(errno));
     return -1;
   }
 
-  if (safeWrite(commandFile, command, commandLength) == -1 ||
-      safeWrite(commandFile, "\n", 1) == -1) {
-    fclose(commandFile);
+  if (safeWrite(commandFd, command, commandLength) == -1 ||
+      safeWrite(commandFd, "\n", 1) == -1) {
+    TEMP_FAILURE_RETRY(close(commandFd));
     return -1;
   }
 
-  fclose(commandFile);
+  if (fsync(commandFd) == -1) {
+    ALOGE("Unable to fsync recovery command: %s", strerror(errno));
+    TEMP_FAILURE_RETRY(close(commandFd));
+    return -1;
+  }
+
+  // The data should've been written after the fsync.
+  // Be paranoid anyway.
+  if (TEMP_FAILURE_RETRY(close(commandFd)) == -1) {
+    ALOGE("Unable to close recovery command file \"%s\": %s", kRecoveryCommand,
+         strerror(errno));
+    return -1;
+  }
 
   // Reboot into the recovery partition
   ALOGD("Rebooting into recovery: %s", command);
