@@ -142,9 +142,9 @@ execRecoveryCommand(char *command, size_t commandLength)
 int
 factoryReset()
 {
-  //If there is update.zip on SD card do OTA, or just reset the phone.
-  char updatePath[] = "/sdcard/update.zip" ;
-  int updatePathLength = (int)sizeof(updatePath);
+  // If there is update.zip on SD card do update, or just reset the phone.
+  char* updatePath = "/sdcard/update.zip";
+  int updatePathLength = (int)strlen(updatePath);
   struct stat updateStat;
   if (stat(updatePath, &updateStat) == -1) {
     ALOGD("could not stat update path \"%s\": %s",
@@ -152,7 +152,7 @@ factoryReset()
     ALOGD("Just Do Factory Reset");
     // In AOSP's recovery image, "--wipe_data" is the synonym for factory reset
     return execRecoveryCommand((char *) kWipeData, kWipeDataLength);
-  }else{
+  } else {
     ALOGD("Do Install Fota Update");
     return installFotaUpdate(updatePath, updatePathLength);
   }
