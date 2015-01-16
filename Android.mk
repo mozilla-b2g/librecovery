@@ -57,7 +57,7 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := librecovery_test
 LOCAL_FORCE_STATIC_EXECUTABLE := true
 LOCAL_SRC_FILES := librecovery_test.c $(LIBRECOVERY_SRC_FILES)
-LOCAL_STATIC_LIBRARIES := libcutils libc
+LOCAL_STATIC_LIBRARIES := libcutils libc liblog
 LOCAL_CFLAGS := $(LIBRECOVERY_CFLAGS)
 LOCAL_MODULE_TAGS := tests
 include $(BUILD_EXECUTABLE)
